@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>IoT Health Monitor - Medical Dashboard</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #f8f9fa;
+            margin: 0;
+            padding: 0;
+        }
+        .header {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .logout-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.3);
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            text-decoration: none;
+            transition: background 0.3s;
+        }
+        .logout-btn:hover {
+            background: rgba(255,255,255,0.3);
+            text-decoration: none;
+            color: white;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+        .overview-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .overview-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .overview-card h3 {
+            margin: 0 0 0.5rem 0;
+            color: #333;
+        }
+        .overview-card .value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #28a745;
+        }
+        .patients-container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .patients-header {
+            background: #f8f9fa;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #dee2e6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .patients-header h2 {
+            margin: 0;
+            color: #333;
+        }
+        .status-critical {
+            background: #f8d7da;
+            color: #721c24;
+            animation: blink 1s infinite;
+        }
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.7; }
+        }
+        .patient-readings {
+            display: grid;
+            gap: 1rem;
+        }
+        .reading-entry {
+            display: flex;
+            justify-content: between;
+            align-items: center;
+            padding: 0.75rem;
+            background: white;
+            border-radius: 5px;
+            border-left: 4px solid #28a745;
+        }
+        .reading-entry.critical {
+            border-left-color: #dc3545;
+            background: #fff5f5;
+        }
+        .reading-info {
+            flex: 1;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .reading-vitals {
+            display: flex;
+            gap: 2rem;
+            align-items: center;
+        }
+        .vital-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .heart-rate {
+            font-weight: 600;
+            color: #dc3545;
+        }
+        .reading-time {
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+        .fall-alert {
+            background: #dc3545;
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            animation: blink 1s infinite;
+        }
+        .no-data {
+            text-align: center;
+            color: #6c757d;
+            font-style: italic;
+            padding: 3rem;
+        }
+        .filters {
+            margin-bottom: 1rem;
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+        }
+        .filter-btn {
+            padding: 0.5rem 1rem;
+            border: 1px solid #28a745;
+            background: white;
+            color: #28a745;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .filter-btn.active {
+            background: #28a745;
+            color: white;
+        }
+        .filter-btn:hover {
+            background: #28a745;
+            color: white;
+        }
+        .analytics-section {
+            margin-bottom: 2rem;
+        }
+        .charts-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        .chart-card {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .chart-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #333;
+        }
+        .chart-controls {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        .chart-select {
+            padding: 0.25rem 0.5rem;
+            border: 1px solid #28a745;
+            border-radius: 3px;
+            font-size: 0.9rem;
+        }
+        .chart-canvas {
+            height: 300px !important;
+            width: 100% !important;
+        }
+        .chart-card canvas {
+            max-height: 300px !important;
+        }
+        @media (max-width: 768px) {
+            .charts-container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Medical Dashboard</h1>
+        <div class="user-info">
+            <span>Medical Staff Portal</span>
+            <a href="/logout" class="logout-btn">Logout</a>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div class="overview-cards">
+            <div class="overview-card">
+                <h3>Active Patients</h3>
+                <div class="value" id="activePatients">0</div>
+            </div>
+            <div class="overview-card">
+                <h3>Critical Alerts</h3>
+                <div class="value" id="criticalAlerts">0</div>
+            </div>
+            <div class="overview-card">
+                <h3>Avg Heart Rate</h3>
+                <div class="value" id="avgHeartRate">-- bpm</div>
+            </div>
+            <div class="overview-card">
+                <h3>Total Readings</h3>
+                <div class="value" id="totalReadings">0</div>
+            </div>
+        </div>
+        
+        <div class="analytics-section">
+            <div class="charts-container">
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <div class="chart-title">Heart Rate Trends</div>
+                        <div class="chart-controls">
+                            <select id="chartPatientSelect" class="chart-select" onchange="updateCharts()">
+                                <option value="all">All Patients</option>
+                            </select>
+                            <select id="chartTimeRange" class="chart-select" onchange="updateCharts()">
+                                <option value="10">Last 10 readings</option>
+                                <option value="20">Last 20 readings</option>
+                                <option value="50">Last 50 readings</option>
+                                <option value="all">All readings</option>
+                            </select>
+                        </div>
+                    </div>
+                    <canvas id="heartRateChart" class="chart-canvas"></canvas>
+                </div>
+                
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <div class="chart-title">Critical Alert Analysis</div>
+                        <div class="chart-controls">
+                            <span style="font-size: 0.9rem; color: #6c757d;">Critical Activity Status</span>
+                        </div>
+                    </div>
+                    <canvas id="fallAnalysisChart" class="chart-canvas"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="patients-container">
+            <div class="patients-header">
+                <h2>Patient Monitoring</h2>
+                <div>
+                    <span class="status-indicator"></span>
+                    <span>Live Updates</span>
+                </div>
+            </div>
+            
+            <div class="filters">
+                <button class="filter-btn active" onclick="filterData('all')">All Patients</button>
+                <button class="filter-btn" onclick="filterData('critical')">Critical Only</button>
+                <button class="filter-btn" onclick="filterData('normal')">Normal Only</button>
+                <select id="readingsCount" onchange="updateReadingsCount()" style="margin-left: 1rem; padding: 0.5rem; border-radius: 5px; border: 1px solid #28a745;">
+                    <option value="5">Show 5 readings</option>
+                    <option value="10" selected>Show 10 readings</option>
+                    <option value="20">Show 20 readings</option>
+                    <option value="all">Show all readings</option>
+                </select>
+            </div>
+            
+            <div id="patients-data" class="no-data">Loading patient data...</div>
+        </div>
+    </div>
+
+    <script>
+        let allPatientsData = [];
+        let currentFilter = 'all';
+        let readingsToShow = 10;
+        let heartRateChart = null;
+        let fallAnalysisChart = null;
+        
+        // Updated Logic: Critical = Fall + Heart Rate > 100
+        function isCriticalCondition(heartRate, fall) {
+            return fall == 1 && heartRate > 100;
+        }
+        
+        function updateReadingsCount() {
+            let select = document.getElementById('readingsCount');
+            readingsToShow = select.value === 'all' ? 'all' : parseInt(select.value);
+            renderPatientsData();
+        }
+        
+        function initCharts() {
+            // Heart Rate Line Chart
+            const heartRateCtx = document.getElementById('heartRateChart').getContext('2d');
+            heartRateChart = new Chart(heartRateCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: []
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    plugins: {
+                        title: {
+                            display: false
+                        },
+                        legend: {
+                            display: true,
+                            position: 'top'
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0,0,0,0.8)',
+                            titleColor: '#fff',
+                            bodyColor: '#fff',
+                            callbacks: {
+                                afterBody: function(context) {
+                                    let dataIndex = context[0].dataIndex;
+                                    let dataset = context[0].dataset;
+                                    if (dataset.pointRadius[dataIndex] === 8) {
+                                        return 'Critical condition detected!';
+                                    }
+                                    return '';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            min: 50,
+                            max: 150,
+                            title: {
+                                display: true,
+                                text: 'Heart Rate (BPM)'
+                            },
+                            grid: {
+                                color: 'rgba(0,0,0,0.1)'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Time'
+                            },
+                            grid: {
+                                color: 'rgba(0,0,0,0.1)'
+                            }
+                        }
+                    },
+                    elements: {
+                        point: {
+                            radius: 4,
+                            hoverRadius: 8
+                        },
+                        line: {
+                            tension: 0.4
+                        }
+                    }
+                }
+            });
+            
+            // Critical Analysis Doughnut Chart
+            const fallAnalysisCtx = document.getElementById('fallAnalysisChart').getContext('2d');
+            fallAnalysisChart = new Chart(fallAnalysisCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Normal Activity', 'Critical Emergency'],
+                    datasets: [{
+                        data: [0, 0],
+                        backgroundColor: [
+                            '#28a745',
+                            '#dc3545'
+                        ],
+                        borderWidth: 3,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+        
+        function updateCharts() {
+            if (!heartRateChart || !fallAnalysisChart || allPatientsData.length === 0) return;
+            
+            let selectedPatient = document.getElementById('chartPatientSelect').value;
+            let timeRange = document.getElementById('chartTimeRange').value;
+            
+            // Process data for charts
+            let chartData = processChartData(selectedPatient, timeRange);
+            
+            // Update Heart Rate Chart
+            updateHeartRateChart(chartData);
+            
+            // Update Critical Analysis Chart
+            updateFallAnalysisChart(chartData);
+        }
+        
+        function processChartData(selectedPatient, timeRange) {
+            let processedData = {};
+            
+            allPatientsData.forEach(entry => {
+                try {
+                    let patientId = entry.patient_id;
+                    if (selectedPatient !== 'all' && patientId !== selectedPatient) return;
+                    
+                    let timestamp = new Date(entry.timestamp);
+                    let healthData = JSON.parse(entry.data);
+                    
+                    if (!processedData[patientId]) {
+                        processedData[patientId] = [];
+                    }
+                    
+                    processedData[patientId].push({
+                        timestamp: timestamp,
+                        heartRate: healthData.heart_rate,
+                        fall: healthData.fall,
+                        critical: isCriticalCondition(healthData.heart_rate, healthData.fall),
+                        time: timestamp.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'})
+                    });
+                } catch (e) {
+                    console.error('Error processing chart data:', e);
+                }
+            });
+            
+            // Sort by timestamp and limit data based on time range  
+            Object.keys(processedData).forEach(patientId => {
+                // Sort chronologically (oldest first for proper line chart progression)
+                processedData[patientId].sort((a, b) => a.timestamp - b.timestamp);
+                
+                if (timeRange !== 'all') {
+                    let limit = parseInt(timeRange);
+                    // Take the last N readings (most recent)
+                    processedData[patientId] = processedData[patientId].slice(-limit);
+                }
+            });
+            
+            return processedData;
+        }
+        
+        function updateHeartRateChart(chartData) {
+            let datasets = [];
+            let allLabels = new Set();
+            
+            // Color palette for different patients
+            const colors = ['#dc3545', '#28a745', '#007bff', '#ffc107', '#6f42c1', '#fd7e14'];
+            let colorIndex = 0;
+            
+            Object.keys(chartData).forEach(patientId => {
+                let patientData = chartData[patientId];
+                let color = colors[colorIndex % colors.length];
+                
+                datasets.push({
+                    label: `Patient ${patientId}`,
+                    data: patientData.map(reading => reading.heartRate),
+                    borderColor: color,
+                    backgroundColor: color + '20',
+                    fill: false,
+                    tension: 0.4,
+                    pointBackgroundColor: patientData.map(reading => 
+                        reading.critical ? '#dc3545' : color
+                    ),
+                    pointBorderColor: patientData.map(reading => 
+                        reading.critical ? '#dc3545' : color
+                    ),
+                    pointRadius: patientData.map(reading => 
+                        reading.critical ? 8 : 4
+                    )
+                });
+                
+                patientData.forEach(reading => allLabels.add(reading.time));
+                colorIndex++;
+            });
+            
+            // Sort labels chronologically and ensure proper mapping
+            if (Object.keys(chartData).length > 0) {
+                let timeLabels = [];
+                let maxLength = Math.max(...Object.values(chartData).map(data => data.length));
+                
+                // Create unified time labels
+                Object.values(chartData).forEach(patientData => {
+                    patientData.forEach(reading => {
+                        if (!timeLabels.includes(reading.time)) {
+                            timeLabels.push(reading.time);
+                        }
+                    });
+                });
+                
+                timeLabels.sort();
+                
+                // Rebuild datasets with proper alignment
+                datasets = [];
+                colorIndex = 0;
+                
+                Object.keys(chartData).forEach(patientId => {
+                    let patientData = chartData[patientId];
+                    let color = colors[colorIndex % colors.length];
+                    
+                    // Map data to unified time labels
+                    let alignedData = timeLabels.map(timeLabel => {
+                        let reading = patientData.find(r => r.time === timeLabel);
+                        return reading ? reading.heartRate : null;
+                    });
+                    
+                    let alignedCriticals = timeLabels.map(timeLabel => {
+                        let reading = patientData.find(r => r.time === timeLabel);
+                        return reading ? reading.critical : false;
+                    });
+                    
+                    datasets.push({
+                        label: `Patient ${patientId}`,
+                        data: alignedData,
+                        borderColor: color,
+                        backgroundColor: color + '20',
+                        fill: false,
+                        tension: 0.4,
+                        spanGaps: true,
+                        pointBackgroundColor: alignedCriticals.map(critical => critical ? '#dc3545' : color),
+                        pointBorderColor: alignedCriticals.map(critical => critical ? '#dc3545' : color),
+                        pointRadius: alignedCriticals.map(critical => critical ? 8 : 4),
+                        pointBorderWidth: alignedCriticals.map(critical => critical ? 3 : 1)
+                    });
+                    
+                    colorIndex++;
+                });
+                
+                heartRateChart.data.labels = timeLabels;
+            } else {
+                heartRateChart.data.labels = [];
+            }
+            heartRateChart.data.datasets = datasets;
+            heartRateChart.update('none');
+        }
+        
+        function updateFallAnalysisChart(chartData) {
+            let normalCount = 0;
+            let criticalCount = 0;
+            
+            Object.keys(chartData).forEach(patientId => {
+                chartData[patientId].forEach(reading => {
+                    if (reading.critical) {
+                        criticalCount++;
+                    } else {
+                        normalCount++;
+                    }
+                });
+            });
+            
+            fallAnalysisChart.data.datasets[0].data = [normalCount, criticalCount];
+            fallAnalysisChart.update('none');
+        }
+        
+        function updatePatientSelector() {
+            let patientSelect = document.getElementById('chartPatientSelect');
+            let currentPatients = new Set();
+            
+            allPatientsData.forEach(entry => {
+                currentPatients.add(entry.patient_id);
+            });
+            
+            // Clear existing options except "All Patients"
+            patientSelect.innerHTML = '<option value="all">All Patients</option>';
+            
+            // Add patient options
+            Array.from(currentPatients).sort().forEach(patientId => {
+                let option = document.createElement('option');
+                option.value = patientId;
+                option.textContent = `Patient ${patientId}`;
+                patientSelect.appendChild(option);
+            });
+        }
+        
+        function filterData(filter) {
+            currentFilter = filter;
+            
+            // Update filter button states
+            document.querySelectorAll('.filter-btn').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // Re-render data with filter
+            renderPatientsData();
+        }
+        
+        async function fetchData() {
+            try {
+                let res = await fetch('/data');
+                let data = await res.json();
+                
+                if (data.length === 0) {
+                    document.getElementById('patients-data').innerHTML = '<div class="no-data">No patient data available yet.</div>';
+                    updateOverviewCards(0, 0, 0, 0);
+                    return;
+                }
+                
+                allPatientsData = data;
+                updatePatientSelector();
+                updateCharts();
+                renderPatientsData();
+                
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                document.getElementById('patients-data').innerHTML = '<div class="no-data">Error loading patient data.</div>';
+            }
+        }
+        
+        function renderPatientsData() {
+            if (allPatientsData.length === 0) return;
+            
+            // Group data by patient
+            let patientGroups = {};
+            let totalReadings = 0;
+            let totalHeartRate = 0;
+            let criticalAlerts = 0;
+            
+            allPatientsData.forEach(entry => {
+                try {
+                    let patientId = entry.patient_id;
+                    let timestamp = entry.timestamp;
+                    let healthData = JSON.parse(entry.data);
+                    
+                    if (!patientGroups[patientId]) {
+                        patientGroups[patientId] = [];
+                    }
+                    
+                    patientGroups[patientId].push({
+                        timestamp: timestamp,
+                        heartRate: healthData.heart_rate,
+                        fall: healthData.fall
+                    });
+                    
+                    totalReadings++;
+                    totalHeartRate += healthData.heart_rate;
+                    
+                    // Only count as critical if BOTH conditions met
+                    if (isCriticalCondition(healthData.heart_rate, healthData.fall)) {
+                        criticalAlerts++;
+                    }
+                    
+                } catch (e) {
+                    console.error('Error parsing patient data:', e);
+                }
+            });
+            
+            let activePatients = Object.keys(patientGroups).length;
+            let avgHeartRate = totalReadings > 0 ? Math.round(totalHeartRate / totalReadings) : 0;
+            
+            updateOverviewCards(activePatients, criticalAlerts, avgHeartRate, totalReadings);
+            
+            // Render patient sections
+            let html = '';
+            
+            Object.keys(patientGroups).forEach(patientId => {
+                let patientData = patientGroups[patientId];
+                
+                // Sort by timestamp (newest first)
+                patientData.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                
+                // Get latest reading
+                let latestReading = patientData[0];
+                // Only critical if fall AND high HR
+                let hasCriticalAlert = patientData.some(reading => isCriticalCondition(reading.heartRate, reading.fall));
+                
+                // Apply filter
+                if (currentFilter === 'critical' && !hasCriticalAlert) return;
+                if (currentFilter === 'normal' && hasCriticalAlert) return;
+                
+                let patientStatus = hasCriticalAlert ? 'status-critical' : 'status-normal';
+                let statusText = hasCriticalAlert ? 'CRITICAL' : 'NORMAL';
+                
+                html += `
+                    <div class="patient-section">
+                        <div class="patient-header">
+                            <div class="patient-name">Patient: ${patientId}</div>
+                            <div class="patient-status">
+                                <span class="status-badge ${patientStatus}">${statusText}</span>
+                                <span class="reading-time">Last update: ${formatTime(latestReading.timestamp)}</span>
+                            </div>
+                        </div>
+                        
+                        <div class="patient-readings">
+                `;
+                
+                // Show configurable number of readings per patient
+                let readingsSlice = readingsToShow === 'all' ? patientData : patientData.slice(0, readingsToShow);
+                readingsSlice.forEach((reading, index) => {
+                    // Only show critical if BOTH conditions met
+                    let entryClass = isCriticalCondition(reading.heartRate, reading.fall) ? 'reading-entry critical' : 'reading-entry';
+                    let fallAlert = isCriticalCondition(reading.heartRate, reading.fall) ? '<span class="fall-alert">CRITICAL EMERGENCY</span>' : '';
+                    
+                    html += `
+                        <div class="${entryClass}">
+                            <div class="reading-info">
+                                <div class="reading-vitals">
+                                    <div class="vital-item">
+                                        <span>Heart Rate:</span>
+                                        <span class="heart-rate">${reading.heartRate} bpm</span>
+                                    </div>
+                                    ${fallAlert}
+                                </div>
+                                <div class="reading-time">${formatTime(reading.timestamp)}</div>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                html += `
+                        </div>
+                    </div>
+                `;
+            });
+            
+            if (html === '') {
+                html = '<div class="no-data">No patients match the current filter.</div>';
+            }
+            
+            document.getElementById('patients-data').innerHTML = html;
+        }
+        
+        function updateOverviewCards(activePatients, criticalAlerts, avgHeartRate, totalReadings) {
+            document.getElementById('activePatients').textContent = activePatients;
+            document.getElementById('criticalAlerts').textContent = criticalAlerts;
+            document.getElementById('avgHeartRate').textContent = avgHeartRate + ' bpm';
+            document.getElementById('totalReadings').textContent = totalReadings;
+        }
+        
+        function formatTime(timestamp) {
+            try {
+                let date = new Date(timestamp);
+                return date.toLocaleTimeString() + ' - ' + date.toLocaleDateString();
+            } catch (e) {
+                return timestamp;
+            }
+        }
+        
+        // Initialize charts when page loads
+        window.addEventListener('load', function() {
+            initCharts();
+            fetchData();
+            
+            // Auto-refresh every 3 seconds
+            setInterval(fetchData, 3000);
+        });
+    </script>
+</body>
+</html>

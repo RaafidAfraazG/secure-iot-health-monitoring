@@ -1,0 +1,681 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>IoT Health Monitor - Patient Dashboard with Charts</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <style>
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #f8f9fa;
+            margin: 0;
+            padding: 0;
+        }
+        .header {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        .logout-btn {
+            background: rgba(255,255,255,0.2);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.3);
+            padding: 0.5rem 1rem;
+            border-radius: 5px;
+            text-decoration: none;
+            transition: background 0.3s;
+        }
+        .logout-btn:hover {
+            background: rgba(255,255,255,0.3);
+            text-decoration: none;
+            color: white;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 2rem auto;
+            padding: 0 1rem;
+        }
+
+        .status-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        .status-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        .status-card h3 {
+            margin: 0 0 0.5rem 0;
+            color: #333;
+        }
+        .status-card .value {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #28a745;
+        }
+        .status-card .value.critical {
+            color: #dc3545;
+            animation: pulse-red 2s infinite;
+        }
+        @keyframes pulse-red {
+            0% { opacity: 1; }
+            50% { opacity: 0.7; }
+            100% { opacity: 1; }
+        }
+        .critical-alert {
+            background: #fff5f5 !important;
+            border: 2px solid #dc3545 !important;
+        }
+        .critical-alert h3 {
+            color: #dc3545 !important;
+        }
+
+        .charts-section {
+            margin-bottom: 2rem;
+        }
+        .charts-container {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .chart-card {
+            background: white;
+            border-radius: 10px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #e9ecef;
+        }
+        .chart-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #333;
+        }
+        .chart-controls {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+        }
+        .chart-select {
+            padding: 0.25rem 0.5rem;
+            border: 1px solid #28a745;
+            border-radius: 3px;
+            font-size: 0.9rem;
+        }
+        .chart-canvas {
+            height: 250px !important;
+            width: 100% !important;
+        }
+        @media (max-width: 768px) {
+            .charts-container {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .data-container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        .data-header {
+            background: #f8f9fa;
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #dee2e6;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .data-header h2 {
+            margin: 0;
+            color: #333;
+        }
+        .status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #28a745;
+            display: inline-block;
+            margin-right: 0.5rem;
+            animation: pulse 2s infinite;
+        }
+        .status-indicator.critical {
+            background: #dc3545;
+        }
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+        #data {
+            padding: 1.5rem;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        .entry {
+            margin: 0.75rem 0;
+            padding: 1rem;
+            border-left: 4px solid #28a745;
+            background: #f8f9fa;
+            border-radius: 0 5px 5px 0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .entry-info {
+            flex: 1;
+        }
+        .entry-time {
+            font-size: 0.9rem;
+            color: #6c757d;
+        }
+        .critical-alert-entry {
+            border-left-color: #dc3545 !important;
+            background: #fff5f5 !important;
+            box-shadow: 0 0 10px rgba(220, 53, 69, 0.3);
+        }
+        .fall-badge {
+            background: #dc3545;
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            animation: blink 1s infinite;
+        }
+        .critical-badge {
+            background: #dc3545;
+            color: white;
+            padding: 0.25rem 0.5rem;
+            border-radius: 15px;
+            font-size: 0.8rem;
+            font-weight: bold;
+            animation: blink 1s infinite;
+            margin-left: 0.5rem;
+        }
+        @keyframes blink {
+            0%, 50% { opacity: 1; }
+            51%, 100% { opacity: 0.5; }
+        }
+        .heart-rate {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #333;
+        }
+        .heart-rate.critical {
+            color: #dc3545;
+            font-weight: bold;
+        }
+        .no-data {
+            text-align: center;
+            color: #6c757d;
+            font-style: italic;
+            padding: 2rem;
+        }
+        .legend {
+            background: #e9ecef;
+            padding: 1rem;
+            border-radius: 5px;
+            margin-bottom: 1rem;
+            font-size: 0.9rem;
+        }
+        .legend h4 {
+            margin: 0 0 0.5rem 0;
+            color: #333;
+        }
+        .legend-item {
+            margin: 0.25rem 0;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .legend-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🩺 My Health Monitor (Patient View)</h1>
+        <div class="user-info">
+            <span>Patient Dashboard</span>
+            <a href="/" class="logout-btn">← Back to Main</a>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div class="legend">
+            <h4>⚠️ Critical Conditions (Updated Logic)</h4>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #dc3545;"></div>
+                <span><strong>CRITICAL ALERT:</strong> Fall Detected + Heart Rate > 100 BPM (Arduino will sound buzzer)</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-color" style="background: #28a745;"></div>
+                <span><strong>Normal:</strong> All other conditions (no buzzer)</span>
+            </div>
+        </div>
+
+        <div id="criticalNotice" class="critical-notice emergency" style="display: none; background: #f8d7da; border: 1px solid #f5c6cb; border-radius: 5px; padding: 1rem; margin-bottom: 1rem; color: #721c24;">
+            <strong>🚨 EMERGENCY ALERT:</strong> Critical condition detected! Arduino buzzer is active.
+        </div>
+        
+        <div class="status-cards">
+            <div class="status-card" id="statusCard">
+                <h3>📊 Current Status</h3>
+                <div class="value" id="status">Connecting...</div>
+            </div>
+            <div class="status-card" id="hrCard">
+                <h3>💓 Current Heart Rate</h3>
+                <div class="value" id="latestHR">-- bpm</div>
+            </div>
+            <div class="status-card" id="fallCard">
+                <h3>🚨 Critical Alerts</h3>
+                <div class="value" id="criticalCount">0</div>
+            </div>
+            <div class="status-card">
+                <h3>📈 Total Readings</h3>
+                <div class="value" id="totalReadings">0</div>
+            </div>
+        </div>
+
+        <div class="charts-section">
+            <div class="charts-container">
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <div class="chart-title">📈 My Heart Rate Trend (ECG-style)</div>
+                        <div class="chart-controls">
+                            <select id="chartTimeRange" class="chart-select" onchange="updateChart()">
+                                <option value="10">Last 10 readings</option>
+                                <option value="20" selected>Last 20 readings</option>
+                                <option value="50">Last 50 readings</option>
+                                <option value="all">All readings</option>
+                            </select>
+                        </div>
+                    </div>
+                    <canvas id="heartRateChart" class="chart-canvas"></canvas>
+                </div>
+                
+                <div class="chart-card">
+                    <div class="chart-header">
+                        <div class="chart-title">🚨 My Activity Status</div>
+                    </div>
+                    <canvas id="activityChart" class="chart-canvas"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="data-container">
+            <div class="data-header">
+                <h2>📈 My Real-time Health Data</h2>
+                <div>
+                    <span class="status-indicator" id="liveIndicator"></span>
+                    <span>Live Updates</span>
+                </div>
+            </div>
+            <div id="data" class="no-data">Loading your health data...</div>
+        </div>
+    </div>
+
+    <script>
+        let criticalAlertCount = 0;
+        let allPatientData = [];
+        let currentCriticalStatus = false;
+        let heartRateChart = null;
+        let activityChart = null;
+        let chartData = [];
+        
+        // Updated Logic: Critical = Fall Detected + Heart Rate > 100
+        function isCriticalCondition(heartRate, fall) {
+            return fall == 1 && heartRate > 100;
+        }
+
+        function initCharts() {
+            // Heart Rate ECG-style Line Chart
+            const heartRateCtx = document.getElementById('heartRateChart').getContext('2d');
+            heartRateChart = new Chart(heartRateCtx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: 'Heart Rate (BPM)',
+                        data: [],
+                        borderColor: '#dc3545',
+                        backgroundColor: 'rgba(220, 53, 69, 0.1)',
+                        fill: true,
+                        tension: 0.4,
+                        pointBackgroundColor: [],
+                        pointBorderColor: [],
+                        pointRadius: [],
+                        pointBorderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        intersect: false,
+                        mode: 'index'
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(0,0,0,0.8)',
+                            titleColor: '#fff',
+                            bodyColor: '#fff',
+                            callbacks: {
+                                afterBody: function(context) {
+                                    let dataIndex = context[0].dataIndex;
+                                    let dataset = context[0].dataset;
+                                    if (dataset.pointRadius[dataIndex] === 8) {
+                                        return '🚨 Critical condition detected!';
+                                    }
+                                    return '';
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false,
+                            min: 50,
+                            max: 120,
+                            title: {
+                                display: true,
+                                text: 'Heart Rate (BPM)',
+                                font: {
+                                    size: 12,
+                                    weight: 'bold'
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(220, 53, 69, 0.1)'
+                            }
+                        },
+                        x: {
+                            title: {
+                                display: true,
+                                text: 'Time',
+                                font: {
+                                    size: 12,
+                                    weight: 'bold'
+                                }
+                            },
+                            grid: {
+                                color: 'rgba(0,0,0,0.05)'
+                            }
+                        }
+                    },
+                    elements: {
+                        point: {
+                            radius: 4,
+                            hoverRadius: 8
+                        },
+                        line: {
+                            tension: 0.4,
+                            borderWidth: 2
+                        }
+                    }
+                }
+            });
+            
+            // Activity Status Doughnut Chart
+            const activityCtx = document.getElementById('activityChart').getContext('2d');
+            activityChart = new Chart(activityCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Normal Activity', 'Critical Alert'],
+                    datasets: [{
+                        data: [0, 0],
+                        backgroundColor: [
+                            '#28a745',
+                            '#dc3545'
+                        ],
+                        borderWidth: 3,
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                padding: 15,
+                                font: {
+                                    size: 11
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        function updateChart() {
+            if (!heartRateChart || chartData.length === 0) return;
+            
+            let timeRange = document.getElementById('chartTimeRange').value;
+            let dataToShow = chartData;
+            
+            if (timeRange !== 'all') {
+                let limit = parseInt(timeRange);
+                dataToShow = chartData.slice(-limit);
+            }
+            
+            let labels = dataToShow.map(entry => entry.time);
+            let heartRates = dataToShow.map(entry => entry.heartRate);
+            
+            // Color and size points based on critical status only
+            let pointColors = dataToShow.map(entry => {
+                if (entry.critical) return '#dc3545';
+                return '#28a745';
+            });
+            
+            let pointSizes = dataToShow.map(entry => {
+                if (entry.critical) return 8;
+                return 4;
+            });
+            
+            heartRateChart.data.labels = labels;
+            heartRateChart.data.datasets[0].data = heartRates;
+            heartRateChart.data.datasets[0].pointBackgroundColor = pointColors;
+            heartRateChart.data.datasets[0].pointBorderColor = pointColors;
+            heartRateChart.data.datasets[0].pointRadius = pointSizes;
+            heartRateChart.update('none');
+            
+            // Update activity chart - only normal vs critical
+            let normalCount = dataToShow.filter(entry => !entry.critical).length;
+            let criticalCount = dataToShow.filter(entry => entry.critical).length;
+            
+            activityChart.data.datasets[0].data = [normalCount, criticalCount];
+            activityChart.update('none');
+        }
+        
+        async function fetchData() {
+            try {
+                console.log('Fetching data from /data endpoint...');
+                
+                let healthRes = await fetch('/data');
+                let healthData = await healthRes.json();
+                console.log('Health data received:', healthData);
+                
+                if (healthData.length === 0) {
+                    document.getElementById('data').innerHTML = '<div class="no-data">No health data available yet. Make sure your Arduino is sending data to the server.</div>';
+                    document.getElementById('status').textContent = 'No Data';
+                    return;
+                }
+                
+                document.getElementById('status').textContent = 'Connected';
+                
+                let html = '';
+                let latestHR = 0;
+                criticalAlertCount = 0;
+                let latestCritical = false;
+                
+                // Prepare chart data
+                chartData = [];
+                
+                for (let i = 0; i < healthData.length; i++) {
+                    try {
+                        let entry = healthData[i];
+                        let healthDataParsed = JSON.parse(entry.data);
+                        let timestamp = new Date(entry.timestamp);
+                        let isCritical = isCriticalCondition(healthDataParsed.heart_rate, healthDataParsed.fall);
+                        
+                        // Add to chart data
+                        chartData.push({
+                            time: timestamp.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'}),
+                            heartRate: healthDataParsed.heart_rate,
+                            fall: healthDataParsed.fall == 1,
+                            critical: isCritical,
+                            timestamp: timestamp
+                        });
+                        
+                        if (i === healthData.length - 1) {
+                            latestHR = healthDataParsed.heart_rate;
+                            latestCritical = isCritical;
+                        }
+                        
+                        if (isCritical) {
+                            criticalAlertCount++;
+                        }
+                        
+                    } catch (e) {
+                        console.error('Error parsing health data entry:', e, healthData[i]);
+                    }
+                }
+                
+                // Sort chart data by timestamp
+                chartData.sort((a, b) => a.timestamp - b.timestamp);
+                
+                // Update charts
+                updateChart();
+                
+                // Process data for display (newest first)
+                for (let i = healthData.length - 1; i >= 0; i--) {
+                    try {
+                        let entry = healthData[i];
+                        let healthDataParsed = JSON.parse(entry.data);
+                        
+                        let entryClass = 'entry';
+                        let statusBadges = '';
+                        let hrClass = 'heart-rate';
+                        
+                        // Only show critical if BOTH fall AND high heart rate
+                        if (isCriticalCondition(healthDataParsed.heart_rate, healthDataParsed.fall)) {
+                            entryClass = 'entry critical-alert-entry';
+                            statusBadges = '<span class="fall-badge">🚨 CRITICAL ALERT</span><span class="critical-badge">BUZZER ACTIVE</span>';
+                            hrClass = 'heart-rate critical';
+                        }
+                        
+                        let timestamp = new Date(entry.timestamp).toLocaleTimeString();
+                        
+                        html += `
+                            <div class="${entryClass}">
+                                <div class="entry-info">
+                                    <div class="${hrClass}">❤️ ${healthDataParsed.heart_rate} bpm</div>
+                                    <div class="entry-time">Patient: ${entry.patient_id} - ${timestamp}</div>
+                                </div>
+                                ${statusBadges}
+                            </div>
+                        `;
+                    } catch (e) {
+                        console.error('Error parsing health data entry:', e, healthData[i]);
+                    }
+                }
+                
+                document.getElementById('data').innerHTML = html || '<div class="no-data">No valid health data found.</div>';
+                document.getElementById('latestHR').textContent = latestHR + ' bpm';
+                document.getElementById('criticalCount').textContent = criticalAlertCount;
+                document.getElementById('totalReadings').textContent = healthData.length;
+                
+                updateStatusCards(latestCritical, latestHR);
+                
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                document.getElementById('status').textContent = 'Error';
+                document.getElementById('data').innerHTML = '<div class="no-data">Error loading data: ' + error.message + '</div>';
+            }
+        }
+        
+        function updateStatusCards(isCurrentlyCritical, heartRate) {
+            const statusCard = document.getElementById('statusCard');
+            const hrCard = document.getElementById('hrCard');
+            const fallCard = document.getElementById('fallCard');
+            const statusElement = document.getElementById('status');
+            const hrElement = document.getElementById('latestHR');
+            const criticalNotice = document.getElementById('criticalNotice');
+            const liveIndicator = document.getElementById('liveIndicator');
+            
+            if (isCurrentlyCritical) {
+                statusCard.classList.add('critical-alert');
+                hrCard.classList.add('critical-alert');
+                fallCard.classList.add('critical-alert');
+                statusElement.textContent = 'CRITICAL';
+                statusElement.classList.add('critical');
+                hrElement.classList.add('critical');
+                criticalNotice.style.display = 'block';
+                liveIndicator.classList.add('critical');
+                currentCriticalStatus = true;
+                
+                try {
+                    let audio = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBj+a2/LDciUFLIHO8tiJNwgZaLvt559NEAxQp+PwtmMcBjiR1/LMeSwFJHfH8N2QQAoUXrTp66hVFApGn+DyvmEeBC13yO/eizEIHm22');
+                    audio.play().catch(e => console.log('Audio play failed:', e));
+                } catch (e) {
+                    console.log('Audio not supported');
+                }
+            } else {
+                statusCard.classList.remove('critical-alert');
+                hrCard.classList.remove('critical-alert');
+                fallCard.classList.remove('critical-alert');
+                statusElement.textContent = 'Normal';
+                statusElement.classList.remove('critical');
+                hrElement.classList.remove('critical');
+                criticalNotice.style.display = 'none';
+                liveIndicator.classList.remove('critical');
+                currentCriticalStatus = false;
+            }
+        }
+        
+        // Initialize when page loads
+        window.addEventListener('load', function() {
+            console.log('Page loaded, initializing charts and starting data fetch...');
+            initCharts();
+            fetchData();
+            
+            // Auto-refresh every 3 seconds
+            setInterval(fetchData, 3000);
+        });
+    </script>
+</body>
+</html>
