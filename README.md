@@ -1,4 +1,4 @@
-# Secure IoT-Based Health Monitoring System Overview
+# Secure IoT-Based Health Monitoring System
 
 This project implements a secure, embedded IoT health monitoring system using ESP8266 (NodeMCU). The system monitors heart rate and fall detection in real-time and transmits encrypted telemetry data to a backend server for critical alert analysis. The system is designed with embedded firmware, wireless communication, and on-device encryption principles.
 
